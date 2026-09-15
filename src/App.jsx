@@ -359,6 +359,10 @@ button.e-item:hover{ background:var(--e-card2); }
 .e-cal .day.sel{ background:var(--e-card2); }
 .e-cal .day .m{ width:5px; height:5px; border-radius:50%; background:currentColor; opacity:0; }
 .e-cal .day.on .m{ opacity:1; }
+.e-cal .day.plan{ color:var(--e-acc); }
+.e-cal .day.plan .m{ opacity:1; background:var(--e-acc); }
+.e-cal .day.missed{ color:var(--e-err); }
+.e-cal .day.missed .m{ opacity:1; background:var(--e-err); }
 
 .e-macro{ display:flex; flex-direction:column; gap:6px; }
 .e-macro .top{ display:flex; justify-content:space-between; font-size:13px; }
@@ -2967,25 +2971,51 @@ function CalendarView() {
   const offset = (first.getDay() + 6) % 7;
   const daysIn = new Date(y, mo, 0).getDate();
   const trained = new Set(data.sessions.filter((s) => s.finishedAt).map((s) => s.date));
+  // Lo previsto por el programa, no solo lo ya entrenado: sin esto el
+  // calendario está vacío hasta que cierras la primera sesión.
+  const pg = useProgram();
+  const previstos = useMemo(() => {
+    const m = new Map();
+    for (const it of pg?.status.list || []) if (!m.has(it.date)) m.set(it.date, it);
+    return m;
+  }, [pg]);
   const cells = [];
   for (let i = 0; i < offset; i++) cells.push(null);
   for (let d = 1; d <= daysIn; d++) cells.push(`${ym}-${pad2(d)}`);
   const shift = (n) => { const d = new Date(y, mo - 1 + n, 1); setYm(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}`); };
   const daySessions = data.sessions.filter((s) => s.finishedAt && s.date === sel);
   const monthCount = [...trained].filter((d) => d.startsWith(ym)).length;
+  const monthPlan = [...previstos.keys()].filter((d) => d.startsWith(ym) && !trained.has(d)).length;
+  // Detalle del día elegido: qué toca, de qué semana y con qué ejercicios.
+  const prevSel = previstos.get(sel);
+  const planSel = prevSel && pg ? programPlanFor(pg.program, prevSel.week) : null;
+  const diaSel = planSel ? planSel.days[prevSel.day] : null;
   return (
     <div className="e-page">
       <BubbleCard>
         <div className="e-row between">
           <IconBtn icon={ChevronLeft} label="Mes anterior" onClick={() => shift(-1)} />
-          <div className="e-stack" style={{ alignItems: "center" }}><b style={{ fontSize: 17, textTransform: "capitalize" }}>{MONTHS_ES[mo - 1]} {y}</b><span className="e-muted">{monthCount} días entrenados</span></div>
+          <div className="e-stack" style={{ alignItems: "center" }}><b style={{ fontSize: 17, textTransform: "capitalize" }}>{MONTHS_ES[mo - 1]} {y}</b><span className="e-muted">{monthCount} entrenados{monthPlan ? ` · ${monthPlan} previstos` : ""}</span></div>
           <IconBtn icon={ChevronRight} label="Mes siguiente" onClick={() => shift(1)} />
         </div>
         <div className="e-cal">
           {DAYS_ES.map((d) => <span key={d} className="wd">{d}</span>)}
-          {cells.map((c, i) => c ? (
-            <button key={c} className={`e-cal day ${trained.has(c) ? "on" : ""} ${c === t ? "today" : ""} ${c === sel ? "sel" : ""}`} style={{ display: "flex" }} onClick={() => setSel(c)}>{Number(c.slice(-2))}<span className="m" /></button>
-          ) : <span key={`x${i}`} />)}
+          {cells.map((c, i) => {
+            if (!c) return <span key={`x${i}`} />;
+            const it = previstos.get(c);
+            const estado = trained.has(c) ? "on" : it ? (it.state === "missed" ? "missed" : it.state === "skipped" ? "" : "plan") : "";
+            return (
+              <button key={c} className={`e-cal day ${estado} ${c === t ? "today" : ""} ${c === sel ? "sel" : ""}`} style={{ display: "flex" }}
+                title={it ? `${it.name}${trained.has(c) ? " · hecha" : ""}` : ""} onClick={() => setSel(c)}>
+                {Number(c.slice(-2))}<span className="m" />
+              </button>
+            );
+          })}
+        </div>
+        <div className="e-row wrap" style={{ gap: 12, fontSize: 12, color: "var(--e-text2)" }}>
+          <span className="e-row" style={{ gap: 5 }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--e-ok)" }} />entrenado</span>
+          <span className="e-row" style={{ gap: 5 }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--e-acc)" }} />previsto</span>
+          <span className="e-row" style={{ gap: 5 }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--e-err)" }} />atrasado</span>
         </div>
       </BubbleCard>
       <BubbleCard icon={Dumbbell} title={fmtDate(sel, true)} titleBig flush>
@@ -2997,7 +3027,24 @@ function CalendarView() {
               {s.note && <span className="e-muted">«{s.note}»</span>}
             </div>
           ))}
-          {!daySessions.length && <Empty icon={Calendar}>Sin entrenamiento este día.</Empty>}
+          {!daySessions.length && diaSel && (
+            <div className="e-item" style={{ alignItems: "flex-start", flexDirection: "column", gap: 8 }}>
+              <div className="e-row between" style={{ width: "100%" }}>
+                <b>{diaSel.name}</b>
+                <StatusBadge kind={prevSel.state === "missed" ? "err" : prevSel.state === "today" ? "acc" : prevSel.state === "skipped" ? "" : "acc"}>
+                  {prevSel.state === "missed" ? "atrasada" : prevSel.state === "today" ? "hoy" : prevSel.state === "skipped" ? "saltada" : "prevista"}
+                </StatusBadge>
+              </div>
+              <span className="e-muted">Semana {prevSel.week} de {pg.program.weeks} · {planSel.block.name} · {planSel.mod.label} · RIR {planSel.mod.rir}</span>
+              {diaSel.blocks.map((b, i) => (
+                <div key={i} className="e-row between" style={{ width: "100%", fontSize: 13 }}>
+                  <span className="e-muted e-ellip">{exById[b.exerciseId]?.name || b.exerciseId}</span>
+                  <span>{b.sets} × {b.repsMin === b.repsMax ? b.repsMin : `${b.repsMin}–${b.repsMax}`}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!daySessions.length && !diaSel && <Empty icon={Calendar}>Día de descanso: ni sesión hecha ni prevista.</Empty>}
         </div>
       </BubbleCard>
     </div>
