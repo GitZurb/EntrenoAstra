@@ -20,6 +20,7 @@
  *   - Datos publicados hacia Home Assistant: helpers input_number, calendario, lista
  *     de tareas, notificaciones y escenas, siempre mediante hass.callService.
  */
+import { APPEARANCE } from "./appearance.js";
 import React, { useState, useEffect, useMemo, useRef, useCallback, useContext, createContext } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -425,7 +426,7 @@ button.e-item:hover{ background:var(--e-card2); }
 function makeStyles() {
   const s = document.createElement("style");
   s.setAttribute("data-entreno", "");
-  s.textContent = CSS;
+  s.textContent = CSS + APPEARANCE;
   return s;
 }
 
@@ -1845,10 +1846,11 @@ function useWeightSeries() {
 const IconBubble = ({ icon: I, kind = "", small }) => (I ? <span className={`e-ico ${kind} ${small ? "sm" : ""}`}><I /></span> : null);
 
 // Cabecera de sección, fuera de tarjeta: rotula un grupo sin gastar una burbuja.
-const SectionHeader = ({ title, sub, action }) => (
-  <div className="e-row between" style={{ padding: "4px 4px 0" }}>
+const SectionHeader = ({ title, sub, action, icon: Icon = Layers }) => (
+  <div className="e-section">
+    <Icon aria-hidden="true" />
     <div className="e-stack"><span className="e-bubble-title">{title}</span>{sub && <span className="e-bubble-sub">{sub}</span>}</div>
-    {action}
+    {action && <div className="e-section-action">{action}</div>}
   </div>
 );
 
@@ -4106,6 +4108,7 @@ const TABS = [
   { id: "entreno", label: "Entreno", icon: Dumbbell },
   { id: "comida", label: "Comida", icon: Utensils },
   { id: "progreso", label: "Progreso", icon: TrendingUp },
+  { id: "ajustes", label: "Ajustes", icon: Settings },
 ];
 
 function App() {
@@ -4127,13 +4130,6 @@ function App() {
             <b>Entreno</b>
           </div>
         )}
-        <main className="e-main" ref={mainRef}>
-          {nav.tab === "hoy" && <TodayScreen />}
-          {nav.tab === "entreno" && <TrainScreen />}
-          {nav.tab === "comida" && <FoodScreen />}
-          {nav.tab === "progreso" && <ProgressScreen />}
-          {nav.tab === "ajustes" && <SettingsScreen />}
-        </main>
         <nav className="e-nav" aria-label="Secciones">
           <div className="e-nav-inner">
             {TABS.map((t) => { const I = t.icon; return (
@@ -4144,6 +4140,13 @@ function App() {
             ); })}
           </div>
         </nav>
+        <main className="e-main" ref={mainRef}>
+          {nav.tab === "hoy" && <TodayScreen />}
+          {nav.tab === "entreno" && <TrainScreen />}
+          {nav.tab === "comida" && <FoodScreen />}
+          {nav.tab === "progreso" && <ProgressScreen />}
+          {nav.tab === "ajustes" && <SettingsScreen />}
+        </main>
       </div>
     </NavCtx.Provider>
   );

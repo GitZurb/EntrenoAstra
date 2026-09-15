@@ -1,4 +1,4 @@
-# Entreno
+# Entreno Astra
 
 Entrenador personal para un solo usuario: entrenamientos, alimentación y progreso en
 el mismo sitio, sin login ni backend propio, pensado para integrarse como panel
@@ -22,18 +22,26 @@ npm run dev        # lo mismo, reconstruyendo al guardar
 Sin dependencias de CDN en tiempo de ejecución: Preact, los iconos y las gráficas
 (SVG propio, sin librería) van dentro del bundle (237 kB minificado, 72 kB con gzip).
 
-## Interfaz
+## Interfaz Astra · 0.5.0
 
-Dashboard minimalista construido sobre una única pieza reutilizable, la burbuja
-(`BubbleCard`): icono en círculo, título, subtítulo, acción y contenido, con
-esquinas de 24 px, mucho espacio negativo y sin bordes ni sombras marcadas. De ahí
-derivan `MetricBubble` (métricas compactas), `ProgressBubble`, `WorkoutBubble`,
-`ExerciseBubble` (ejercicio con series desplegables), `SectionHeader`,
-`StatusBadge` y `ActionButton`. La rejilla es de 12 columnas (`e-grid` + `e-c3`,
-`e-c4`, `e-c6`, `e-c8`): un mismo sistema que en móvil apila y en escritorio
-reparte. Todos los colores salen de las variables del frontend de Home Assistant,
-así que la app adopta el tema de HA (claro u oscuro) y fuera de él usa su propio
-respaldo oscuro.
+Rediseño inspirado en las capturas del dashboard de Home Assistant: fondo oscuro
+con luces azules y violetas, superficies translúcidas con borde suave, iconos
+circulares, controles en pastilla y navegación superior subrayada. Incluye acceso
+directo a Ajustes y composición adaptable a móvil y escritorio.
+
+`src/appearance.js` contiene la capa visual y sus tokens, incrustada junto con
+los estilos base de `src/App.jsx` en el módulo final. No requiere hojas de estilo,
+fuentes ni imágenes remotas. Las variables de Home Assistant siguen controlando
+los colores; `--entreno-background` permite sustituir los degradados por el fondo
+del dashboard. Las transparencias tienen alternativa opaca y se respeta la
+preferencia de movimiento reducido.
+
+Para instalar esta copia, utiliza **GitZurb/EntrenoAstra** como repositorio
+personalizado de HACS. El módulo compilado sigue siendo `dist/panel.js`.
+Para instalación manual, copia ese módulo a tu carpeta de HA y actualiza la URL
+con `?v=0.5.0`. Esta edición usa el mismo elemento `entreno-panel`: carga una sola
+versión del módulo en cada dashboard. El cambio visual no migra datos ni cambia
+las entidades configuradas.
 
 ## Fase 1 · aplicación autónoma
 
