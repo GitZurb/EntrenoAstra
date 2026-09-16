@@ -7,8 +7,8 @@ Instalado y funcionando en la instancia (Home Assistant 2026.9.2), todo por MCP:
 | Elemento | Valor |
 |---|---|
 | Panel en la barra lateral | **Entreno** (`/entreno-app`), vista en modo panel con la tarjeta `custom:entreno-panel` |
-| Módulo | instalado con **HACS** como repositorio personalizado `GitZurb/Entreno` |
-| Recurso de Lovelace | `/hacsfiles/Entreno/panel.js` (lo registra HACS solo) |
+| Módulo | instalado con **HACS** como repositorio personalizado `GitZurb/EntrenoAstra` (en la lista de HACS aparece como **Entreno**, que es el `name` de `hacs.json`) |
+| Recurso de Lovelace | `/hacsfiles/EntrenoAstra/panel.js` (lo registra HACS solo, con su `hacstag`) |
 | Helper volumen semanal | `input_number.entreno_volumen_semanal` · series · 0–300 · paso 0,5 |
 | Helper sesiones de la semana | `input_number.entreno_sesiones_semana` · sesiones · 0–14 · paso 1 |
 | Helper adherencia | `input_number.entreno_adherencia` · % · 0–200 · paso 1 |
@@ -38,7 +38,7 @@ Sin configurar por no existir entidades de ese tipo en la instancia:
 ## Instalar en otra instancia
 
 1. HACS → Frontend → menú de los tres puntos → Repositorios personalizados.
-2. Repositorio `GitZurb/Entreno`, categoría **Lovelace**. Descargar.
+2. Repositorio `GitZurb/EntrenoAstra`, categoría **Lovelace**. Descargar.
 3. Crear un dashboard con una vista en modo panel y una sola tarjeta
    `custom:entreno-panel`. Los ajustes de la tarjeta admiten entidades por
    defecto (`scale_entity`, `todo_entity`, `notify_service`, `helper_*`), que
