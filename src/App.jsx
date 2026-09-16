@@ -1,7 +1,7 @@
 /*
  * Entreno · entrenador personal de un solo usuario.
  *
- * Un único archivo React. Se ejecuta de dos formas:
+ * Estado y pantallas React, con módulos propios para las demostraciones 3D.
  *   1. Autónomo (fase 1): dist/index.html incrusta el bundle y monta <entreno-panel>.
  *      `hass` es nulo y toda la integración queda inactiva, la app funciona en local.
  *   2. Panel personalizado de Home Assistant (fase 2): dist/panel.js se copia a
@@ -20,6 +20,9 @@
  *   - Datos publicados hacia Home Assistant: helpers input_number, calendario, lista
  *     de tareas, notificaciones y escenas, siempre mediante hass.callService.
  */
+import { ExercisePlayer, ExerciseThumbnail } from "./exercise-player.jsx";
+import { EXERCISE_FIGURES } from "./exercise-motion.js";
+import playerCSS from "./exercise-player.css";
 import { APPEARANCE } from "./appearance.js";
 import React, { useState, useEffect, useMemo, useRef, useCallback, useContext, createContext } from "react";
 import { createRoot } from "react-dom/client";
@@ -430,7 +433,7 @@ button.e-item:hover{ background:var(--e-card2); }
 function makeStyles() {
   const s = document.createElement("style");
   s.setAttribute("data-entreno", "");
-  s.textContent = CSS + APPEARANCE;
+  s.textContent = CSS + APPEARANCE + playerCSS;
   return s;
 }
 
@@ -563,187 +566,12 @@ const db = (() => {
 })();
 
 /* =============================================================================
- * ILUSTRACIONES DE EJERCICIOS · pictogramas vectoriales propios
- * Figura de perfil parametrizada por ángulos (0° = derecha, 90° = abajo).
- * Cada ejercicio define dos fotogramas: posición inicial y final.
+ * DEMOSTRACIONES DE EJERCICIOS · visor 3D y miniaturas propias
+ * Movimiento continuo, cámara giratoria y explicaciones por fase.
  * ========================================================================== */
-const SEG = { torso: 40, neck: 4, head: 8, uarm: 26, farm: 24, thigh: 34, shin: 32, foot: 12 };
-const dirv = (a) => [Math.cos((a * Math.PI) / 180), Math.sin((a * Math.PI) / 180)];
-const adv = (p, a, l) => { const d = dirv(a); return [p[0] + d[0] * l, p[1] + d[1] * l]; };
-
-function solvePose(pose) {
-  const hip = pose.hip;
-  const shoulder = adv(hip, pose.torso, SEG.torso);
-  const headA = pose.head ?? pose.torso;
-  const head = adv(shoulder, headA, SEG.neck + SEG.head);
-  const limb = (armA, foreA) => { const elbow = adv(shoulder, armA, SEG.uarm); const hand = adv(elbow, foreA, SEG.farm); return { elbow, hand }; };
-  const leg = (thighA, shinA, footA) => { const knee = adv(hip, thighA, SEG.thigh); const ankle = adv(knee, shinA, SEG.shin); const toe = adv(ankle, footA, SEG.foot); return { knee, ankle, toe }; };
-  const arm = limb(pose.arm, pose.fore);
-  const arm2 = pose.arm2 != null ? limb(pose.arm2, pose.fore2 ?? pose.fore) : null;
-  const lg = leg(pose.thigh, pose.shin, pose.foot);
-  const lg2 = pose.thigh2 != null ? leg(pose.thigh2, pose.shin2 ?? pose.shin, pose.foot2 ?? pose.foot) : null;
-  return { hip, shoulder, head, arm, arm2, leg: lg, leg2: lg2 };
-}
-
-function Equip({ kind, at, ang = 0 }) {
-  if (!kind || !at) return null;
-  const [x, y] = at;
-  const acc = "var(--e-acc)";
-  if (kind === "bar") return <g><circle cx={x} cy={y} r={9} fill="var(--e-card2)" stroke={acc} strokeWidth={3} /><circle cx={x} cy={y} r={2} fill={acc} /></g>;
-  if (kind === "db") return <g transform={`rotate(${ang} ${x} ${y})`}><rect x={x - 8} y={y - 2} width={16} height={4} rx={2} fill={acc} /><circle cx={x - 8} cy={y} r={4.5} fill={acc} /><circle cx={x + 8} cy={y} r={4.5} fill={acc} /></g>;
-  if (kind === "db1") return <g><circle cx={x} cy={y} r={5.5} fill="var(--e-card2)" stroke={acc} strokeWidth={3} /></g>;
-  if (kind === "kb") return <g><path d={`M${x - 5} ${y - 6} a5 5 0 0 1 10 0`} fill="none" stroke={acc} strokeWidth={3} /><circle cx={x} cy={y + 2} r={7} fill={acc} /></g>;
-  if (kind === "plate") return <g><circle cx={x} cy={y} r={8} fill="var(--e-card2)" stroke={acc} strokeWidth={3} /><circle cx={x} cy={y} r={2} fill={acc} /></g>;
-  return null;
-}
-
-function BenchShape({ bench }) {
-  if (!bench) return null;
-  const { x, y, w, type = "flat" } = bench;
-  const fill = "var(--e-card2)", stroke = "var(--e-div)";
-  const seatW = type === "flat" ? w : w * 0.45;
-  const legs = <g stroke={stroke} strokeWidth={3} strokeLinecap="round"><line x1={x + 10} y1={y + 8} x2={x + 10} y2={y + 34} /><line x1={x + seatW - 10} y1={y + 8} x2={x + seatW - 10} y2={y + 34} /></g>;
-  if (type === "flat") return <g>{legs}<rect x={x} y={y} width={w} height={8} rx={3} fill={fill} stroke={stroke} strokeWidth={1.5} /></g>;
-  const ang = type === "incline" ? -38 : 18;
-  const bx = x + seatW - 2, by = y + 4;
-  return <g>{legs}<rect x={x} y={y} width={seatW} height={8} rx={3} fill={fill} stroke={stroke} strokeWidth={1.5} /><g transform={`rotate(${ang} ${bx} ${by})`}><rect x={bx} y={by - 4} width={w - seatW + 2} height={8} rx={3} fill={fill} stroke={stroke} strokeWidth={1.5} /></g></g>;
-}
-
-// Dibuja un fotograma. `pose` acepta: hip, torso, head, arm, fore, arm2, fore2, thigh, shin, foot,
-// thigh2, shin2, foot2, equip ('bar' | 'db' | 'db1' | 'kb' | 'plate'), equipAt ('hand' | 'hand2' | 'shoulder' | 'hip' | 'chest'), bench, ground, wall.
-function Figure({ pose, size = 120, muted = false }) {
-  const P = solvePose(pose);
-  const body = muted ? "var(--e-text2)" : "var(--e-text)";
-  const back = "color-mix(in srgb, var(--e-text2) 55%, transparent)";
-  const sw = 6;
-  const seg = (a, b, color = body) => <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={color} strokeWidth={sw} strokeLinecap="round" />;
-  const equipPt = pose.equipAt === "shoulder" ? adv(P.shoulder, pose.torso, 4) : pose.equipAt === "hip" ? P.hip : pose.equipAt === "chest" ? adv(P.shoulder, pose.torso + 180, 14) : pose.equipAt === "hand2" && P.arm2 ? P.arm2.hand : P.arm.hand;
-  const ground = pose.ground ?? 132;
-  return (
-    <svg viewBox="0 0 200 150" width={size} height={size * 0.75} aria-hidden="true" style={{ display: "block", maxWidth: "100%" }}>
-      <line x1={8} y1={ground} x2={192} y2={ground} stroke="var(--e-div)" strokeWidth={2} strokeLinecap="round" />
-      {pose.wall && <line x1={pose.wall} y1={20} x2={pose.wall} y2={ground} stroke="var(--e-div)" strokeWidth={3} />}
-      <BenchShape bench={pose.bench} />
-      {P.leg2 && <g>{seg(P.hip, P.leg2.knee, back)}{seg(P.leg2.knee, P.leg2.ankle, back)}{seg(P.leg2.ankle, P.leg2.toe, back)}</g>}
-      {P.arm2 && <g>{seg(P.shoulder, P.arm2.elbow, back)}{seg(P.arm2.elbow, P.arm2.hand, back)}</g>}
-      {seg(P.hip, P.leg.knee)}{seg(P.leg.knee, P.leg.ankle)}{seg(P.leg.ankle, P.leg.toe)}
-      {seg(P.hip, P.shoulder)}
-      <circle cx={P.head[0]} cy={P.head[1]} r={SEG.head} fill={body} />
-      {seg(P.shoulder, P.arm.elbow)}{seg(P.arm.elbow, P.arm.hand)}
-      <Equip kind={pose.equip} at={equipPt} ang={pose.equipAng} />
-    </svg>
-  );
-}
-
-// Poses base
-const STAND = { hip: [92, 64], torso: -90, thigh: 90, shin: 90, foot: 0, arm: 90, fore: 90 };
-const st = (o) => ({ ...STAND, ...o });
-const SUPINE = { hip: [74, 92], torso: 0, head: 0, thigh: 150, shin: 100, foot: 60, arm: -90, fore: -90, ground: 136, bench: { x: 30, y: 96, w: 120, type: "flat" } };
-const sup = (o) => ({ ...SUPINE, ...o });
-const INCLINE = { ...SUPINE, hip: [72, 96], torso: -36, head: -36, thigh: 160, shin: 100, bench: { x: 30, y: 100, w: 124, type: "incline" }, ground: 136 };
-const inc = (o) => ({ ...INCLINE, ...o });
-const DECLINE = { ...SUPINE, hip: [70, 88], torso: 18, head: 18, thigh: 175, shin: 95, foot: 45, bench: { x: 30, y: 92, w: 124, type: "decline" }, ground: 136 };
-const dec = (o) => ({ ...DECLINE, ...o });
-const SEATED = { hip: [92, 90], torso: -90, thigh: 0, shin: 90, foot: 0, arm: 90, fore: 90, bench: { x: 60, y: 96, w: 64, type: "flat" }, ground: 136 };
-const seat = (o) => ({ ...SEATED, ...o });
-const HINGE = { hip: [78, 76], torso: -25, head: -20, thigh: 85, shin: 90, foot: 0, arm: 85, fore: 88 };
-const hinge = (o) => ({ ...HINGE, ...o });
-const PRONE_INCLINE = { hip: [64, 104], torso: -40, head: -30, thigh: 150, shin: 95, foot: 60, arm: 95, fore: 95, ground: 136, bench: { x: 26, y: 108, w: 124, type: "incline" } };
-
-const FG = (a, b, thumb = 1) => ({ frames: [a, b], thumb });
-const EXERCISE_FIGURES = {
-  // Pecho
-  press_banca: FG(sup({ arm: -150, fore: -40, equip: "bar" }), sup({ arm: -90, fore: -90, equip: "bar" })),
-  press_inclinado: FG(inc({ arm: 170, fore: -70, equip: "bar" }), inc({ arm: -126, fore: -126, equip: "bar" })),
-  press_declinado: FG(dec({ arm: -140, fore: -30, equip: "bar" }), dec({ arm: -72, fore: -72, equip: "bar" })),
-  press_mancuernas: FG(sup({ arm: -160, fore: -30, equip: "db1" }), sup({ arm: -90, fore: -90, equip: "db1" })),
-  press_inclinado_mancuernas: FG(inc({ arm: 175, fore: -65, equip: "db1" }), inc({ arm: -126, fore: -126, equip: "db1" })),
-  press_suelo: FG({ hip: [74, 114], torso: 0, head: 0, thigh: 140, shin: 80, foot: 60, arm: -160, fore: -30, equip: "bar", ground: 122 }, { hip: [74, 114], torso: 0, head: 0, thigh: 140, shin: 80, foot: 60, arm: -90, fore: -90, equip: "bar", ground: 122 }),
-  aperturas: FG(sup({ arm: -172, fore: -150, equip: "db1" }), sup({ arm: -95, fore: -92, equip: "db1" })),
-  flexiones: FG({ hip: [92, 116], torso: -170, thigh: 12, shin: 10, foot: 80, arm: 20, fore: 150 }, { hip: [92, 98], torso: -152, thigh: 28, shin: 28, foot: 80, arm: 90, fore: 90 }),
-  flexiones_declinadas: FG({ hip: [96, 104], torso: -160, thigh: 0, shin: 0, foot: 90, arm: 30, fore: 145, bench: { x: 128, y: 104, w: 56, type: "flat" }, ground: 138 }, { hip: [96, 86], torso: -140, thigh: 12, shin: 10, foot: 90, arm: 88, fore: 90, bench: { x: 128, y: 104, w: 56, type: "flat" }, ground: 138 }),
-  pullover: FG(sup({ hip: [84, 92], arm: -90, fore: -90, equip: "db1", bench: { x: 70, y: 96, w: 60 } }), sup({ hip: [84, 92], arm: -172, fore: -170, equip: "db1", bench: { x: 70, y: 96, w: 60 } })),
-  // Espalda
-  remo_barra: FG(hinge({ arm: 70, fore: 95, equip: "bar" }), hinge({ arm: 140, fore: 40, equip: "bar" })),
-  remo_mancuerna: FG({ hip: [70, 84], torso: -8, head: -5, thigh: 95, shin: 92, foot: 0, thigh2: 20, shin2: 100, foot2: 0, arm2: 60, fore2: 95, arm: 95, fore: 92, equip: "db1", bench: { x: 96, y: 108, w: 84, type: "flat" }, ground: 138 }, { hip: [70, 84], torso: -8, head: -5, thigh: 95, shin: 92, foot: 0, thigh2: 20, shin2: 100, foot2: 0, arm2: 60, fore2: 95, arm: 150, fore: 60, equip: "db1", bench: { x: 96, y: 108, w: 84, type: "flat" }, ground: 138 }),
-  remo_apoyado: FG({ ...PRONE_INCLINE, equip: "db1" }, { ...PRONE_INCLINE, arm: 160, fore: 40, equip: "db1" }),
-  peso_muerto: FG({ hip: [78, 88], torso: -35, head: -25, thigh: 70, shin: 95, foot: 0, arm: 80, fore: 85, equip: "bar" }, st({ equip: "bar", arm: 92, fore: 92 })),
-  peso_muerto_rumano: FG(st({ equip: "bar", arm: 92, fore: 92 }), hinge({ hip: [76, 70], thigh: 92, arm: 80, fore: 88, equip: "bar" })),
-  remo_kettlebell: FG(hinge({ arm: 75, fore: 95, equip: "kb" }), hinge({ arm: 140, fore: 50, equip: "kb" })),
-  encogimientos: FG(st({ equip: "bar", arm: 95, fore: 95 }), st({ hip: [92, 60], equip: "bar", arm: 96, fore: 96 })),
-  superman: FG({ hip: [88, 96], torso: 20, head: 20, thigh: 175, shin: 100, foot: 60, arm: 110, fore: 110, bench: { x: 30, y: 100, w: 70, type: "flat" }, ground: 136 }, { hip: [88, 96], torso: -10, head: -10, thigh: 175, shin: 100, foot: 60, arm: 200, fore: 190, bench: { x: 30, y: 100, w: 70, type: "flat" }, ground: 136 }),
-  // Hombro
-  press_militar: FG(st({ arm: -150, fore: -50, equip: "bar" }), st({ arm: -92, fore: -90, equip: "bar" })),
-  press_hombro_mancuernas: FG(seat({ arm: -140, fore: -60, equip: "db1" }), seat({ arm: -92, fore: -90, equip: "db1" })),
-  press_arnold: FG(seat({ arm: 20, fore: -80, equip: "db1" }), seat({ arm: -92, fore: -90, equip: "db1" })),
-  elevaciones_laterales: FG(st({ arm: 95, fore: 95, arm2: 85, fore2: 85, equip: "db1" }), st({ arm: 5, fore: 8, arm2: 175, fore2: 172, equip: "db1" })),
-  elevaciones_frontales_disco: FG(st({ arm: 80, fore: 80, equip: "plate" }), st({ arm: -5, fore: -5, equip: "plate" })),
-  pajaros: FG(hinge({ hip: [80, 78], torso: -30, arm: 100, fore: 100, equip: "db1" }), hinge({ hip: [80, 78], torso: -30, arm: 200, fore: 195, arm2: 100, fore2: 100, equip: "db1" })),
-  remo_menton: FG(st({ arm: 92, fore: 92, equip: "bar" }), st({ arm: 175, fore: 40, equip: "bar" })),
-  // Bíceps
-  curl_barra: FG(st({ arm: 92, fore: 92, equip: "bar" }), st({ arm: 92, fore: -40, equip: "bar" })),
-  curl_alterno: FG(st({ arm: 92, fore: -30, arm2: 90, fore2: 90, equip: "db1" }), st({ arm: 92, fore: 92, arm2: 90, fore2: -30, equip: "db1", equipAt: "hand2" })),
-  curl_martillo: FG(st({ arm: 92, fore: 92, equip: "db", equipAng: 90 }), st({ arm: 92, fore: -45, equip: "db", equipAng: 90 })),
-  curl_inclinado: FG(inc({ hip: [70, 96], torso: -50, head: -50, arm: 100, fore: 100, thigh: 150, shin: 95, foot: 40, equip: "db1" }), inc({ hip: [70, 96], torso: -50, head: -50, arm: 100, fore: -20, thigh: 150, shin: 95, foot: 40, equip: "db1" })),
-  curl_concentrado: FG(seat({ torso: -70, head: -60, arm: 100, fore: 100, thigh: 10, equip: "db1" }), seat({ torso: -70, head: -60, arm: 100, fore: -40, thigh: 10, equip: "db1" })),
-  // Tríceps
-  press_frances: FG(sup({ arm: -80, fore: 175, equip: "bar" }), sup({ arm: -80, fore: -80, equip: "bar" })),
-  extension_triceps_mancuerna: FG(seat({ arm: -110, fore: 130, equip: "db1" }), seat({ arm: -100, fore: -95, equip: "db1" })),
-  fondos_banco: FG({ hip: [96, 96], torso: -80, head: -80, thigh: 10, shin: 85, foot: 0, arm: 140, fore: 60, bench: { x: 30, y: 92, w: 60, type: "flat" }, ground: 136 }, { hip: [96, 76], torso: -85, head: -85, thigh: 20, shin: 85, foot: 0, arm: 125, fore: 100, bench: { x: 30, y: 92, w: 60, type: "flat" }, ground: 136 }),
-  press_cerrado: FG(sup({ arm: -165, fore: -25, equip: "bar" }), sup({ arm: -92, fore: -90, equip: "bar" })),
-  patada_triceps: FG(hinge({ hip: [80, 78], torso: -30, arm: 160, fore: 80, equip: "db1" }), hinge({ hip: [80, 78], torso: -30, arm: 160, fore: 165, equip: "db1" })),
-  // Pierna
-  sentadilla_frontal: FG(st({ arm: -60, fore: 175, equip: "bar", equipAt: "shoulder" }), { hip: [78, 94], torso: -75, head: -70, thigh: 40, shin: 115, foot: 0, arm: -50, fore: 175, equip: "bar", equipAt: "shoulder" }),
-  sentadilla_trasera: FG(st({ arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" }), { hip: [72, 94], torso: -62, head: -55, thigh: 40, shin: 115, foot: 0, arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" }),
-  sentadilla_goblet: FG(st({ arm: 130, fore: -60, equip: "kb" }), { hip: [78, 96], torso: -78, head: -72, thigh: 40, shin: 115, foot: 0, arm: 130, fore: -60, equip: "kb" }),
-  sentadilla_banco: FG(st({ arm: 130, fore: -60, equip: "kb" }), { hip: [70, 96], torso: -70, head: -65, thigh: 20, shin: 110, foot: 0, arm: 130, fore: -60, equip: "kb", bench: { x: 6, y: 100, w: 60, type: "flat" }, ground: 136 }),
-  sentadilla_pared: FG({ hip: [76, 94], torso: -90, head: -90, thigh: 0, shin: 90, foot: 0, arm: 90, fore: 90, wall: 76 }, { hip: [76, 94], torso: -90, head: -90, thigh: 0, shin: 90, foot: 0, arm: 90, fore: 90, wall: 76 }),
-  sentadilla_bulgara: FG({ hip: [86, 72], torso: -82, head: -80, thigh: 75, shin: 92, foot: 0, thigh2: 160, shin2: 30, foot2: 90, arm: 95, fore: 95, equip: "db1", bench: { x: 118, y: 96, w: 70, type: "flat" }, ground: 136 }, { hip: [82, 92], torso: -80, head: -76, thigh: 40, shin: 112, foot: 0, thigh2: 165, shin2: 40, foot2: 90, arm: 95, fore: 95, equip: "db1", bench: { x: 118, y: 96, w: 70, type: "flat" }, ground: 136 }),
-  zancadas: FG(st({ equip: "db1", arm: 92, fore: 92 }), { hip: [90, 84], torso: -88, head: -88, thigh: 40, shin: 100, foot: 0, thigh2: 135, shin2: 60, foot2: 90, arm: 92, fore: 92, equip: "db1" }),
-  zancada_inversa_barra: FG(st({ arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" }), { hip: [90, 84], torso: -85, head: -85, thigh: 40, shin: 100, foot: 0, thigh2: 135, shin2: 60, foot2: 90, arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" }),
-  step_up: FG({ hip: [80, 66], torso: -85, head: -85, thigh: 90, shin: 90, foot: 0, thigh2: 30, shin2: 110, foot2: 0, arm: 92, fore: 92, equip: "db1", bench: { x: 108, y: 104, w: 70, type: "flat" }, ground: 136 }, { hip: [120, 42], torso: -90, head: -90, thigh: 90, shin: 90, foot: 0, thigh2: 100, shin2: 110, foot2: 20, arm: 92, fore: 92, equip: "db1", bench: { x: 108, y: 104, w: 70, type: "flat" }, ground: 136 }),
-  sentadilla_mancuernas: FG(st({ equip: "db1", arm: 92, fore: 92 }), { hip: [78, 94], torso: -70, head: -65, thigh: 40, shin: 115, foot: 0, arm: 95, fore: 95, equip: "db1" }),
-  rdl_mancuernas: FG(st({ equip: "db1", arm: 92, fore: 92 }), hinge({ hip: [76, 70], thigh: 92, arm: 80, fore: 88, equip: "db1" })),
-  hip_thrust: FG({ hip: [96, 112], torso: -140, head: -120, thigh: 60, shin: 100, foot: 0, arm: 20, fore: 60, equip: "bar", equipAt: "hip", bench: { x: 20, y: 96, w: 46, type: "flat" }, ground: 136 }, { hip: [96, 90], torso: -165, head: -140, thigh: 20, shin: 100, foot: 0, arm: 30, fore: 60, equip: "bar", equipAt: "hip", bench: { x: 20, y: 96, w: 46, type: "flat" }, ground: 136 }),
-  puente_gluteo_una_pierna: FG({ hip: [96, 122], torso: 180, head: 180, thigh: -60, shin: 90, foot: 0, thigh2: -30, shin2: -30, foot2: 60, arm: 20, fore: 20, ground: 132 }, { hip: [96, 106], torso: 165, head: 160, thigh: -50, shin: 90, foot: 0, thigh2: -20, shin2: -20, foot2: 70, arm: 30, fore: 30, ground: 132 }),
-  buenos_dias: FG(st({ arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" }), hinge({ hip: [76, 72], thigh: 92, arm: 150, fore: -110, equip: "bar", equipAt: "shoulder" })),
-  pm_una_pierna: FG(st({ equip: "db1", arm: 92, fore: 92 }), { hip: [84, 70], torso: -15, head: -10, thigh: 92, shin: 90, foot: 0, thigh2: 170, shin2: 178, foot2: 100, arm: 85, fore: 88, equip: "db1" }),
-  swing_kb: FG(hinge({ hip: [78, 76], torso: -30, arm: 60, fore: 100, equip: "kb" }), st({ hip: [92, 66], arm: -5, fore: 0, equip: "kb" })),
-  curl_nordico: FG({ hip: [90, 80], torso: -90, head: -90, thigh: 90, shin: 0, foot: 0, arm: 60, fore: 90, bench: { x: 128, y: 100, w: 60, type: "flat" }, ground: 118 }, { hip: [70, 92], torso: -40, head: -35, thigh: 60, shin: 0, foot: 0, arm: 40, fore: 60, bench: { x: 128, y: 100, w: 60, type: "flat" }, ground: 118 }),
-  gemelo_pie: FG(st({ hip: [92, 64], equip: "db1", arm: 92, fore: 92, foot: 0 }), st({ hip: [92, 56], equip: "db1", arm: 92, fore: 92, foot: 40 })),
-  gemelo_una_pierna: FG(st({ hip: [92, 64], equip: "db1", arm: 92, fore: 92, thigh2: 100, shin2: 150, foot2: 60 }), st({ hip: [92, 56], equip: "db1", arm: 92, fore: 92, foot: 40, thigh2: 100, shin2: 150, foot2: 60 })),
-  // Core
-  plancha: FG({ hip: [96, 106], torso: 178, head: 175, thigh: -2, shin: 0, foot: 90, arm: 90, fore: 0, ground: 132 }, { hip: [96, 106], torso: 178, head: 175, thigh: -2, shin: 0, foot: 90, arm: 90, fore: 0, ground: 132 }),
-  plancha_lateral: FG({ hip: [96, 108], torso: 180, head: 180, thigh: 0, shin: 0, foot: 90, arm: 90, fore: 0, arm2: -110, fore2: -110, ground: 132 }, { hip: [96, 100], torso: 178, head: 175, thigh: 0, shin: 0, foot: 90, arm: 90, fore: 0, arm2: -95, fore2: -95, ground: 132 }),
-  crunch_declinado: FG(dec({ arm: -120, fore: 160, equip: null, thigh: 200, shin: 110, foot: 80 }), dec({ torso: -40, head: -45, arm: -130, fore: 180, thigh: 200, shin: 110, foot: 80 })),
-  elevacion_piernas_banco: FG(sup({ hip: [90, 92], thigh: 0, shin: 0, foot: 60, arm: 165, fore: 170, bench: { x: 30, y: 96, w: 120 } }), sup({ hip: [90, 92], thigh: -80, shin: -80, foot: 0, arm: 165, fore: 170, bench: { x: 30, y: 96, w: 120 } })),
-  paseo_granjero: FG(st({ equip: "db1", arm: 92, fore: 92, thigh: 70, shin: 95, thigh2: 110, shin2: 90 }), st({ equip: "db1", arm: 92, fore: 92, thigh: 110, shin: 90, thigh2: 70, shin2: 95 })),
-  russian_twist: FG({ hip: [96, 110], torso: -120, head: -110, thigh: -20, shin: 40, foot: 0, arm: -20, fore: -20, equip: "plate", ground: 132 }, { hip: [96, 110], torso: -120, head: -110, thigh: -20, shin: 40, foot: 0, arm: -70, fore: -80, equip: "plate", ground: 132 }),
-  dead_bug: FG({ hip: [96, 122], torso: 180, head: 180, thigh: -90, shin: 0, foot: 60, arm: -90, fore: -90, ground: 132 }, { hip: [96, 122], torso: 180, head: 180, thigh: -20, shin: -10, foot: 60, arm: 170, fore: 170, ground: 132 }),
-};
-
-function ExerciseFigure({ exercise, frame, size = 120, muted }) {
-  const fig = EXERCISE_FIGURES[exercise.id] || EXERCISE_FIGURES[exercise.figureOf] || null;
-  if (!fig) return <svg viewBox="0 0 200 150" width={size} height={size * 0.75} aria-hidden="true"><rect x={20} y={20} width={160} height={110} rx={12} fill="var(--e-card2)" /><text x={100} y={80} textAnchor="middle" fill="var(--e-text2)" fontSize={14}>sin ilustración</text></svg>;
-  const f = frame ?? fig.thumb;
-  return <Figure pose={fig.frames[f]} size={size} muted={muted} />;
-}
-
-// Animación inicio → fin en la ficha (respeta prefers-reduced-motion).
-function AnimatedFigure({ exercise, size = 220 }) {
-  const [f, setF] = useState(0);
-  useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const i = setInterval(() => setF((x) => 1 - x), 1400);
-    return () => clearInterval(i);
-  }, []);
-  return (
-    <div className="e-col" style={{ alignItems: "center", gap: 4 }}>
-      <ExerciseFigure exercise={exercise} frame={f} size={size} />
-      <div className="e-row" style={{ gap: 6 }}>{[0, 1].map((i) => <button key={i} className={`e-chip ${f === i ? "on" : ""}`} style={{ height: 26, padding: "0 10px" }} onClick={() => setF(i)}>{i === 0 ? "inicio" : "final"}</button>)}</div>
-    </div>
-  );
-}
+// Los movimientos, el renderizado y el reproductor viven en módulos independientes.
+const ExerciseFigure = ExerciseThumbnail;
+const AnimatedFigure = ExercisePlayer;
 
 /* Silueta con músculos resaltados (vista frontal y posterior) */
 const MUSCLE_SHAPES = {
@@ -2886,11 +2714,9 @@ function ExerciseDetail({ exercise, onBack }) {
         {def.bench && <StatusBadge>banco</StatusBadge>}{def.unilateral && <StatusBadge>unilateral</StatusBadge>}{def.lower && <StatusBadge>tren inferior</StatusBadge>}
         <StatusBadge icon={Timer}>{def.restSec} s</StatusBadge>
       </div>
-      <BubbleCard icon={Activity} title="Ejecución" subtitle="posición inicial y final · músculos implicados">
-        <div className="e-row" style={{ justifyContent: "space-around", flexWrap: "wrap", gap: 16 }}>
-          <AnimatedFigure exercise={def} size={220} />
-          <MuscleMap exercise={def} />
-        </div>
+      <BubbleCard icon={Activity} title="Ejecución" subtitle="movimiento continuo · cámara y explicación por fases">
+        <AnimatedFigure key={def.id} exercise={def} />
+        <div className="e-execution-muscles"><span className="e-muted">Grupos musculares implicados</span><MuscleMap exercise={def} /></div>
       </BubbleCard>
       <div className="e-grid2">
         <BubbleCard icon={Trophy} iconKind="warn" title="Mejor marca">
@@ -4244,4 +4070,4 @@ class EntrenoPanel extends HTMLElement {
 }
 if (typeof customElements !== "undefined" && !customElements.get("entreno-panel")) customElements.define("entreno-panel", EntrenoPanel);
 
-export { EntrenoPanel, loadsFor, enumerateLoads, validateLoad, suggestProgression, epley, Figure, EXERCISE_FIGURES, SEED_EXERCISES, MuscleMap };
+export { EntrenoPanel, loadsFor, enumerateLoads, validateLoad, suggestProgression, epley, EXERCISE_FIGURES, SEED_EXERCISES, MuscleMap };

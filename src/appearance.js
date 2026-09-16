@@ -93,6 +93,8 @@ entreno-panel .e-bubble-head .act { max-width:55%; flex-wrap:wrap; justify-conte
   entreno-panel .e-nav-inner { gap:24px; }
 }
 @media (max-width:380px) {
+  entreno-panel .e-tabsbar { width:100%; min-width:0; padding-left:10px; padding-right:10px; }
+  entreno-panel .e-seg button { min-width:0; flex:1 1 0; padding:4px; font-size:11px; }
   entreno-panel .e-page { padding-left:10px; padding-right:10px; }
   entreno-panel .e-metric { column-gap:7px; padding:11px; }
   entreno-panel .e-metric .val { font-size:18px; }

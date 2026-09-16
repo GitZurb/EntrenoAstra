@@ -1,0 +1,38 @@
+entreno-panel .e-demo{width:100%;min-width:0;overflow:hidden;border:1px solid var(--e-edge);border-radius:24px;background:var(--e-icon-bg)}
+entreno-panel .e-demo-stage{position:relative;height:365px;isolation:isolate;background:radial-gradient(ellipse at 50% 60%,#23465899,transparent 68%),linear-gradient(145deg,#0c1926,#11131f)}
+entreno-panel .e-demo-heading{position:absolute;z-index:1;top:20px;left:20px;right:20px;display:flex;justify-content:space-between;gap:10px;align-items:center;pointer-events:none;color:#ccd7e4}
+entreno-panel .e-demo-heading>span{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.14em;font-weight:650}
+entreno-panel .e-demo-heading i{width:5px;height:5px;border-radius:50%;background:#39c6ef}
+entreno-panel .e-demo-heading b{font-size:11px;font-weight:500;color:#9cadbf}
+entreno-panel .e-demo-canvas{height:100%;width:100%;cursor:grab}
+entreno-panel .e-demo-canvas:active{cursor:grabbing}
+entreno-panel .e-demo-canvas canvas{display:block;touch-action:pan-y;max-width:100%}
+entreno-panel .e-demo-camera{position:absolute;bottom:18px;left:18px;display:flex;padding:4px;border:1px solid #ffffff12;border-radius:99px;background:#101722c9}
+entreno-panel .e-demo-camera button{padding:7px 12px;min-height:34px;border-radius:99px;font-size:11px;color:#9cacbf}
+entreno-panel .e-demo-camera button[aria-pressed=true]{background:#ffffff15;color:#e6edf7}
+entreno-panel .e-demo-drag{position:absolute;right:20px;bottom:30px;display:flex;align-items:center;gap:6px;font-size:10px;color:#8c9bb0;pointer-events:none}
+entreno-panel .e-demo-controls{padding:18px;display:flex;flex-direction:column;gap:15px}
+entreno-panel .e-demo-transport{display:flex;align-items:center;gap:10px}
+entreno-panel .e-demo-transport>button{min-height:42px;min-width:42px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:99px;background:var(--e-edge);font-size:13px}
+entreno-panel .e-demo-transport .e-demo-play{padding:0 18px;background:var(--e-acc);color:var(--e-bg);font-weight:650}
+entreno-panel .e-demo-transport label{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--e-text2)}
+entreno-panel .e-demo-transport select{border:1px solid var(--e-edge);border-radius:12px;padding:9px;background:var(--e-card);font-size:12px}
+entreno-panel .e-demo button:disabled{opacity:.45;cursor:default}
+entreno-panel .e-demo-scrub{width:100%;height:22px;accent-color:var(--e-acc);cursor:pointer}
+entreno-panel .e-demo-phases{display:flex;gap:6px}
+entreno-panel .e-demo-phases button{flex:1;min-width:0;padding:10px 5px;border-radius:14px;border:1px solid transparent;color:var(--e-text2);font-size:10px;line-height:1.4;text-align:left}
+entreno-panel .e-demo-phases button span{display:block;font-size:10px;letter-spacing:.1em;margin-bottom:5px;color:var(--e-acc)}
+entreno-panel .e-demo-phases button[aria-current=step]{background:var(--e-acc-soft);border-color:var(--e-edge);color:var(--e-text)}
+entreno-panel .e-demo-cue{display:flex;gap:13px;align-items:flex-start;min-height:76px;border-top:1px solid var(--e-edge);padding-top:16px}
+entreno-panel .e-demo-cue-index{font-size:28px;line-height:1;color:var(--e-acc);font-weight:350}
+entreno-panel .e-demo-cue h3{font-size:14px;font-weight:600;margin-bottom:5px}
+entreno-panel .e-demo-cue p{font-size:13px;color:var(--e-text2);line-height:1.6}
+entreno-panel .e-demo-help{font-size:11px;color:var(--e-text2);line-height:1.6}
+entreno-panel .e-demo-missing{display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;font-size:12px;color:var(--e-text2);padding:14px;text-align:center}
+entreno-panel .e-demo-fallback{position:absolute;inset:45px 0 65px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#a8b8c8}
+entreno-panel .e-ex-thumb{display:block;max-width:100%;flex:none;filter:drop-shadow(0 4px 4px #0003)}
+entreno-panel .e-execution-muscles{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 4px 0}
+@media(min-width:720px){entreno-panel .e-demo-stage{height:420px}entreno-panel .e-demo-controls{padding:22px}entreno-panel .e-demo-phases button{font-size:12px;padding:12px}}
+@media(max-width:380px){entreno-panel .e-demo-drag{display:none}entreno-panel .e-demo-controls{padding:13px}entreno-panel .e-demo-transport label{font-size:0}entreno-panel .e-demo-heading{left:14px;right:14px;gap:4px}entreno-panel .e-demo-heading>span{font-size:8px}}
+
+@media(max-width:480px){entreno-panel .e-demo-drag{display:none}}

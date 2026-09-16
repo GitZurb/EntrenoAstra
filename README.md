@@ -4,7 +4,7 @@ Entrenador personal para un solo usuario: entrenamientos, alimentación y progre
 el mismo sitio, sin login ni backend propio, pensado para integrarse como panel
 personalizado (`panel_custom`) de Home Assistant.
 
-- `src/App.jsx` — toda la aplicación en un único archivo React.
+- `src/App.jsx` — estado, pantallas e integración con Home Assistant.
 - `build.mjs` — cadena de construcción (esbuild), única para las dos fases.
 - `dist/index.html` — fase 1: página autónoma con el bundle incrustado (se abre en
   cualquier navegador o como artifact).
@@ -20,9 +20,9 @@ npm run dev        # lo mismo, reconstruyendo al guardar
 ```
 
 Sin dependencias de CDN en tiempo de ejecución: Preact, los iconos y las gráficas
-(SVG propio, sin librería) van dentro del bundle (237 kB minificado, 72 kB con gzip).
+(SVG propio) y el visor 3D van dentro del módulo. No descarga modelos ni vídeos al abrir un ejercicio.
 
-## Interfaz Astra · 0.5.0
+## Interfaz Astra
 
 Rediseño inspirado en las capturas del dashboard de Home Assistant: fondo oscuro
 con luces azules y violetas, superficies translúcidas con borde suave, iconos
@@ -39,7 +39,7 @@ preferencia de movimiento reducido.
 Para instalar esta copia, utiliza **GitZurb/EntrenoAstra** como repositorio
 personalizado de HACS. El módulo compilado sigue siendo `dist/panel.js`.
 Para instalación manual, copia ese módulo a tu carpeta de HA y actualiza la URL
-con `?v=0.5.0`. Esta edición usa el mismo elemento `entreno-panel`: carga una sola
+con `?v=0.6.0`. Esta edición usa el mismo elemento `entreno-panel`: carga una sola
 versión del módulo en cada dashboard. El cambio visual no migra datos ni cambia
 las entidades configuradas.
 
@@ -82,11 +82,41 @@ Desde la vista Programa, **Publicar** vuelca las 130 sesiones al calendario de
 Home Assistant como eventos de día completo, con los ejercicios y el RIR
 objetivo del día en la descripción.
 
-## Ilustraciones
+## Demostraciones de ejercicios · 0.6.0
 
-Cada ejercicio tiene un pictograma vectorial propio (`EXERCISE_FIGURES`): una figura de
-perfil parametrizada por ángulos con dos fotogramas, inicio y final, más una silueta
-con los músculos implicados. Todo va dentro del bundle, sin imágenes externas.
+El visor sustituye los pictogramas que alternaban dos imágenes por una figura 3D
+articulada, vestida y con el material del ejercicio. Los 61 ejercicios del catálogo
+incluyen una demostración y explicaciones del patrón de movimiento. Los isométricos
+muestran una postura fija, con información sobre apoyos y respiración.
+
+- Reproducir, pausar, reiniciar y cambiar la velocidad de la demostración.
+- Barra de posición y selección de preparación, movimiento, final y regreso.
+- Cámara giratoria mediante arrastre y vistas frontal, de perfil y tres cuartos.
+- Inicio en pausa, movimiento reducido y suspensión al ocultar la ficha.
+- Miniaturas vectoriales sin WebGL en las listas; alternativa vectorial si el
+  dispositivo no puede crear la escena 3D.
+
+`src/exercise-motion.js` contiene el catálogo, los tiempos y las explicaciones;
+`src/exercise-kinematics.js`, los movimientos y apoyos de las extremidades;
+`src/exercise-scene.js`, la escena propia con Three.js;
+`src/exercise-player.jsx` y su CSS, los controles. El movimiento es una ilustración
+procedural, no una captura de movimiento ni una evaluación de la técnica del usuario.
+
+Three.js se incluye en el módulo y no requiere servicios, modelos ni vídeos externos.
+El visor 3D requiere WebGL2. Las gráficas del resto de la app siguen siendo SVG.
+
+**Instalación:** utiliza `dist/panel.js` mediante HACS o archivo local, actualizando
+la URL a `?v=0.6.0` cuando corresponda. El recurso comprimido supera ahora el límite
+aproximado de 128 kB de la alternativa en línea: no pegues `dist/resource.js` como
+una URI de datos. `dist/index.html` sigue funcionando como página autónoma.
+
+### Verificación del visor
+
+`npm run test:motion` comprueba cobertura, coordenadas finitas, continuidad,
+proporciones de la figura, apoyos y posturas estáticas. Se han abierto las 61
+fichas en Chromium y probado los controles, movimiento reducido y la alternativa
+sin WebGL. Diseño revisado a 320, 768 y 1280 px. La técnica deportiva no ha sido
+validada por un profesional; tampoco se ha probado en la instancia real de HA.
 
 ## Fase 2 · panel de Home Assistant
 

@@ -19,6 +19,7 @@ const version = JSON.parse(readFileSync("package.json", "utf8")).version;
 const options = {
   entryPoints: ["src/App.jsx"],
   bundle: true,
+  loader: { ".css": "text" },
   minify: true,
   format: "esm",
   target: ["es2021"],
@@ -26,6 +27,7 @@ const options = {
   jsxImportSource: "preact",
   outfile: "dist/panel.js",
   legalComments: "none",
+  banner: { js: "/*! Three.js\n" + readFileSync("node_modules/three/LICENSE", "utf8") + "*/" },
   // Preact en lugar de React: mismo API a través de preact/compat y ~200 kB menos.
   alias: {
     react: "preact/compat",
