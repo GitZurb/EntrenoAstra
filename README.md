@@ -118,6 +118,8 @@ fichas en Chromium y probado los controles, movimiento reducido y la alternativa
 sin WebGL. Diseño revisado a 320, 768 y 1280 px. La técnica deportiva no ha sido
 validada por un profesional; tampoco se ha probado en la instancia real de HA.
 
+![Vista del nuevo reproductor de ejercicios](docs/preview-exercises.png)
+
 ## Fase 2 · panel de Home Assistant
 
 El mismo bundle `dist/panel.js` se copia a `config/www/entrenador/panel.js` y se
